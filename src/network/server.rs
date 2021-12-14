@@ -6,15 +6,25 @@ impl Server {
 
 		match std::net::UdpSocket::bind(format!("0.0.0.0:{}", port)) {
 			Ok(sock) => {
-				sock.set_nonblocking(true);
-				return Ok(Server {
-					socket: sock,
-					max_connections: max_connections
-				});
+
+				match sock.set_nonblocking(true) {
+
+					Ok(_) => {
+						return Ok(Server {
+							socket: sock,
+							max_connections: max_connections,
+							connections: std::collections::HashMap::new(),
+						});
+					}
+
+					Err(error) => {
+						return Err(error);
+					}
+				}
 			}
 
-			Err(_e) => {
-				return Err(_e);
+			Err(error) => {
+				return Err(error);
 			}
 		}
 	}
