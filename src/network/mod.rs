@@ -1,11 +1,52 @@
 pub mod server;
+pub mod packet;
+pub mod peerdata;
+
+pub enum PacketType {
+	Connect = 0,
+	Disconnect = 1,
+	Data = 2,
+	Ping = 3,
+	Receipt = 4,
+}
+impl PacketType {
+	pub fn from_u8(num: u8) -> Option<PacketType> {
+		match num {
+			1 => return Some(PacketType::Connect),
+			2 => return Some(PacketType::Disconnect),
+			3 => return Some(PacketType::Data),
+			4 => return Some(PacketType::Ping),
+			5 => return Some(PacketType::Receipt),
+			_ => return None
+		}
+	}
+}
+
+pub enum EventType {
+	Connect(String),
+	Disconnect(String),
+	Data(Packet),
+	ServerFull,
+	Timeout
+}
 
 pub struct Server {
 	socket: std::net::UdpSocket,
-	max_connections: u32,
-	connections: std::collections::HashMap<String, PeerData>
+	max_connections: usize,
+	connections: std::collections::HashMap<String, PeerData>,
+	receive_buffer: [u8; 60000],
+	events: std::collections::VecDeque<EventType>,
 }
 
 pub struct PeerData {
-	
+	timer: std::time::Instant,
+	receive_packet_count: [u128; 32],
+	send_packet_count: [u128; 32],
+	stored_packets: [std::collections::HashMap<u128, Packet>; 32],
+	packets_already_received: [std::collections::HashMap<u128, f32>; 32]
+}
+
+pub struct Packet {
+	data: Vec<u8>,
+	read_position: usize,
 }

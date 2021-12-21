@@ -4,10 +4,33 @@ use network::*;
 
 fn main() {
 
-    let port: u16 = 25501;
+    let port = 25501;
 
-    if let Ok(server) = Server::new(port, 10) {
+    if let Ok(mut server) = Server::new(port, 10) {
         println!("Started server with port {}", port);
+
+        loop {
+            server.update(1.0/60.0);
+
+            while server.events_available() {
+
+                if let Some(event) = server.get_event() {
+
+                    match event {
+
+                        EventType::Connect(address) => {
+                            println!("Client connected: {}", address);
+                        }
+
+                        _ => {}
+
+                    }
+
+                }
+
+            }
+        }
+
     } else {
         println!("Could not open server on port {}. Is it already taken?", port);
     }
