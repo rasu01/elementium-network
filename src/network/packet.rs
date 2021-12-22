@@ -1,4 +1,4 @@
-use super::Packet;
+use super::*;
 
 #[allow(dead_code)]
 impl Packet {
@@ -7,6 +7,22 @@ impl Packet {
             data: Vec::new(),
             read_position: 0,
         }
+    }
+
+    pub fn slice(&self) -> &[u8] {
+        return &self.data[0..self.len()];
+    }
+
+    pub fn write<T>(&mut self, value: &T) {
+        unsafe {
+            let pointer = value as *const T;
+            let size = std::mem::size_of::<T>();
+            self.data.extend_from_slice(std::slice::from_raw_parts(std::mem::transmute::<*const T, *const u8>(pointer), size));
+        }
+    }
+
+    pub fn read<T: PacketReadWrite>(&self) -> T::Type {
+        return T::from_bytes(&self.data[self.read_position..self.read_position + std::mem::size_of::<T::Type>()]);
     }
 
     pub fn write_bytes(&mut self, slice: &[u8]) {
@@ -70,5 +86,12 @@ impl Packet {
         array.clone_from_slice(&self.data[self.read_position..self.read_position+1]);
         self.read_position += 1;
         return u8::from_le_bytes(array);
+    }
+}
+
+impl PacketReadWrite for bool {
+    type Type = bool;
+	fn from_bytes(data: &[u8]) -> Self::Type {
+        return data[0] == 0;
     }
 }

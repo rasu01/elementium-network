@@ -2,6 +2,7 @@ pub mod server;
 pub mod packet;
 pub mod peerdata;
 
+const INTERNAL_CHANNEL: u8 = 100;
 pub enum PacketType {
 	Connect = 0,
 	Disconnect = 1,
@@ -36,6 +37,7 @@ pub struct Server {
 	connections: std::collections::HashMap<String, PeerData>,
 	receive_buffer: [u8; 60000],
 	events: std::collections::VecDeque<EventType>,
+	internal_packet_count: u128,
 }
 
 pub struct PeerData {
@@ -49,4 +51,9 @@ pub struct PeerData {
 pub struct Packet {
 	data: Vec<u8>,
 	read_position: usize,
+}
+
+pub trait PacketReadWrite {
+	type Type;
+	fn from_bytes(data: &[u8]) -> Self::Type;
 }

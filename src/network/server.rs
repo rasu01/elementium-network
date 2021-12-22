@@ -15,7 +15,8 @@ impl Server {
 							max_connections: max_connections,
 							connections: std::collections::HashMap::new(),
 							receive_buffer: [0; 60000],
-							events: std::collections::VecDeque::new()
+							events: std::collections::VecDeque::new(),
+							internal_packet_count: 0
 						});
 					}
 
@@ -43,9 +44,11 @@ impl Server {
 					let packet_type = packet.read_u8();
 					let channel_id = packet.read_u8();
 
-					let is_connected = self.connections.contains_key(&client.to_string());
+					let client_address = client.to_string();
 
-					println!("{}", packet_type);
+					let is_connected = self.connections.contains_key(&client_address);
+
+					println!("Packet Type: {}", packet_type);
 
 					match PacketType::from_u8(packet_type) {
 
@@ -59,10 +62,14 @@ impl Server {
 									let event = EventType::Connect(client.to_string());
 									self.events.push_back(event);
 
+									self.send_connection_status(&client_address, true);
+
 								} else {
 									//cannot connect, server is full!
 									let event = EventType::ServerFull;
 									self.events.push_back(event);
+
+									self.send_connection_status(&client_address, false);
 								}
 							}
 						}
@@ -76,7 +83,7 @@ impl Server {
 						}
 
 						Some(PacketType::Ping) => {
-							
+							println!("PING");
 						}
 
 						Some(PacketType::Receipt) => {
@@ -85,8 +92,6 @@ impl Server {
 
 						None => {},
 					}
-
-					println!("{}", packet.len());
 				}
 			},
 
@@ -105,5 +110,30 @@ impl Server {
 
 	pub fn get_event(&mut self) -> Option<EventType> {
 		match self.events.pop_front() {Some(event) => return Some(event),None => return None}
+	}
+
+	fn send_connection_status(&mut self, peer: &String, accepted: bool) {
+		let mut packet = Packet::new();
+
+		packet.write::<u8>(&1); //packet type
+		packet.write::<u8>(&INTERNAL_CHANNEL); //channel id
+		packet.write::<u128>(&self.internal_packet_count);
+
+		packet.write::<u8>(&(accepted as u8));
+		packet.write::<u32>(&0x1); //reliable data
+		packet.write::<u32>(&0x1); //sequence data
+
+		//store packet
+		self.internal_send(peer, &packet);
+		self.internal_packet_count += 1;
+	}
+
+	fn internal_send(&mut self, peer: &String, packet: &Packet) {
+		match self.socket.send_to(packet.slice(), peer) {
+			Ok(_) => {},
+			Err(e ) => {
+				println!("Unable to send. Error: {}", e);
+			}
+		}
 	}
 }

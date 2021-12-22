@@ -19,7 +19,7 @@ fn main() {
                     match event {
 
                         EventType::Connect(address) => {
-                            println!("Client connected: {}", address);
+                            println!("A new client has connected \"{}\"", address);
                         }
 
                         _ => {}
