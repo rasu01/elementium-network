@@ -41,8 +41,8 @@ impl Server {
 					let mut packet = Packet::new();
 					packet.write_bytes(&self.receive_buffer[0..packet_size]);
 
-					let packet_type = packet.read_u8();
-					let channel_id = packet.read_u8();
+					let packet_type = packet.read::<u8>();
+					let channel_id = packet.read::<u8>();
 
 					let client_address = client.to_string();
 
