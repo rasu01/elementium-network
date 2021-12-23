@@ -13,11 +13,11 @@ pub enum PacketType {
 impl PacketType {
 	pub fn from_u8(num: u8) -> Option<PacketType> {
 		match num {
-			1 => return Some(PacketType::Connect),
-			2 => return Some(PacketType::Disconnect),
-			3 => return Some(PacketType::Data),
-			4 => return Some(PacketType::Ping),
-			5 => return Some(PacketType::Receipt),
+			0 => return Some(PacketType::Connect),
+			1 => return Some(PacketType::Disconnect),
+			2 => return Some(PacketType::Data),
+			3 => return Some(PacketType::Ping),
+			4 => return Some(PacketType::Receipt),
 			_ => return None
 		}
 	}
@@ -51,6 +51,13 @@ pub struct PeerData {
 pub struct Packet {
 	data: Vec<u8>,
 	read_position: usize,
+}
+
+#[derive(Copy,Clone)]
+pub struct PacketHeader {
+	packet_id: u32,
+	packet_type: u8,
+	channel_id: u8,
 }
 
 pub trait PacketReadWrite {
