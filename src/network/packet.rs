@@ -1,5 +1,3 @@
-use std::u128;
-
 use super::*;
 
 #[allow(dead_code)]
@@ -46,37 +44,47 @@ impl Packet {
             }
         }
     }
-
-    //write
-    pub fn write_u8(&mut self, value: &u8) {
-        let bytes = value.to_le_bytes();
-        self.data.extend_from_slice(&bytes);
-    }
-
-    pub fn write_u32(&mut self, value: &u32) {
-        let bytes = value.to_le_bytes();
-        self.data.extend_from_slice(&bytes);
-    }
-
-    //read
-    pub fn read_u8(&mut self) -> u8 {
-        let mut array = [0u8;1];
-        array.clone_from_slice(&self.data[self.read_position..self.read_position+1]);
-        self.read_position += 1;
-        return u8::from_le_bytes(array);
-    }
-
-    pub fn read_u32(&mut self) -> u32 {
-        let mut array = [0u8; 4];
-        array.clone_from_slice(&self.data[self.read_position..self.read_position+4]);
-        self.read_position += 4;
-        return u32::from_le_bytes(array);
-    }
-    
 }
 
 impl PacketHeader {
     pub fn new(packet_type: u8, channel_id: u8, packet_id: u32) -> PacketHeader {
         return PacketHeader {packet_type,channel_id,packet_id}
+    }
+}
+
+impl StoredPacket {
+    pub fn new(packet: Packet) -> StoredPacket {
+        return StoredPacket {
+            timer: std::time::Instant::now(),
+            packet: packet, //since the stored packet takes ownership here, this function should be called last.
+        }
+    }
+    pub fn has_timed_out(&self) -> bool {
+		if self.timer.elapsed().as_millis() >= 500 { //TODO: Add the peers ping to this.. What if the ping is over 500 ms???
+			return true;
+		} else {
+			return false;
+		}
+	}
+    pub fn update_timeout(&mut self) {
+		self.timer = std::time::Instant::now();
+	}
+}
+
+impl StoredPacketIdentifier {
+    pub fn new(peer: String, channel_id: u8, packet_id: u128) -> StoredPacketIdentifier {
+        return StoredPacketIdentifier {
+            peer: peer,
+            channel_id: channel_id, 
+            packet_id: packet_id
+        }
+    }
+
+    pub fn clone(&self) -> StoredPacketIdentifier {
+        return StoredPacketIdentifier {
+            peer: self.peer.to_string(),
+            channel_id: self.channel_id,
+            packet_id: self.packet_id
+        }
     }
 }

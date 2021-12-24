@@ -22,6 +22,10 @@ fn main() {
                             println!("A new client has connected \"{}\"", address);
                         }
 
+                        EventType::Timeout(address) => {
+                            println!("A client has timed out \"{}\"", address);
+                        }
+
                         _ => {}
 
                     }

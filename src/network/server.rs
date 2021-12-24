@@ -16,7 +16,8 @@ impl Server {
 							connections: std::collections::HashMap::new(),
 							receive_buffer: [0; 60000],
 							events: std::collections::VecDeque::new(),
-							internal_packet_count: 0
+							internal_packet_count: 0,
+							stored_packets: std::collections::HashMap::new()
 						});
 					}
 
@@ -36,15 +37,12 @@ impl Server {
 		match self.socket.recv_from(&mut self.receive_buffer) {
 			Ok((packet_size, client)) => {
 
-				if true { //size of packet header.. !packet_size < 18
+				if packet_size >= std::mem::size_of::<PacketHeader>() { //We are not accepting packets less than this..
 
 					let mut packet = Packet::new();
 					packet.write_bytes(&self.receive_buffer[0..packet_size]);
 
 					if let Some(packet_header) = packet.read::<PacketHeader>() {
-
-						let channel_id = packet_header.channel_id;
-						let packet_id = packet_header.packet_id;
 
 						let client_address = client.to_string();
 						let is_connected = self.connections.contains_key(&client_address);
@@ -110,7 +108,48 @@ impl Server {
 				}
 			}
 		}
+		self.internal_update();
 		std::thread::sleep(std::time::Duration::from_secs_f64(sleep_time));
+	}
+
+	pub fn internal_update(&mut self) {
+
+		let mut peers_to_remove: Vec<String> = Vec::new();
+
+		for (peer, data) in &self.connections {
+
+			//remove timed out peers
+			if data.has_timed_out() {
+				peers_to_remove.push(peer.to_string());
+				continue;
+			}
+
+			//TODO: check already received packets timeouts.
+		}
+
+		for peer in peers_to_remove {
+
+
+			//finally remove the peer and send store event
+			let event = EventType::Timeout(peer.to_string());
+			self.events.push_back(event);
+			self.connections.remove(&peer);
+		}
+
+		//check the stored packets timers
+		let mut timers_to_update: Vec<StoredPacketIdentifier> = Vec::new();
+		for (spi, sp) in &self.stored_packets {
+			if sp.has_timed_out() {
+				self.internal_send(&spi.peer.to_string(), &sp.packet);
+				timers_to_update.push(spi.clone());
+			}
+		}
+		for spi in timers_to_update {
+			if let Some(sp) = self.stored_packets.get_mut(&spi) {
+				sp.update_timeout();
+			}
+		}
+
 	}
 
 	pub fn events_available(&self) -> bool {
@@ -126,16 +165,16 @@ impl Server {
 		let packet_header = PacketHeader::new(0, INTERNAL_CHANNEL, self.internal_packet_count as u32);
 
 		packet.write::<PacketHeader>(&packet_header);
-		packet.write_u8(&1);
-		packet.write_u32(&0x1); //reliable data
-		packet.write_u32(&0x1); //sequence data
+		packet.write::<bool>(&accepted);
+		packet.write::<u32>(&0x1); //reliable data
+		packet.write::<u32>(&0x1); //sequence data
 
 		//store packet
 		self.internal_send(peer, &packet);
 		self.internal_packet_count += 1;
 	}
 
-	fn send_ping(&mut self, peer: &String) {
+	fn send_ping(&self, peer: &String) {
 		let mut packet = Packet::new();
 		let packet_header = PacketHeader::new(3, INTERNAL_CHANNEL, 0);
 		packet.write::<PacketHeader>(&packet_header);
@@ -149,7 +188,7 @@ impl Server {
 		self.internal_send(peer, &packet);
 	}
 
-	fn internal_send(&mut self, peer: &String, packet: &Packet) {
+	fn internal_send(&self, peer: &String, packet: &Packet) {
 		match self.socket.send_to(packet.slice(), peer) {
 			Ok(_) => {},
 			Err(e ) => {

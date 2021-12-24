@@ -26,9 +26,9 @@ impl PacketType {
 pub enum EventType {
 	Connect(String),
 	Disconnect(String),
+	Timeout(String),
 	Data(Packet),
-	ServerFull,
-	Timeout
+	ServerFull
 }
 
 pub struct Server {
@@ -38,6 +38,19 @@ pub struct Server {
 	receive_buffer: [u8; 60000],
 	events: std::collections::VecDeque<EventType>,
 	internal_packet_count: u128,
+	stored_packets: std::collections::HashMap<StoredPacketIdentifier, StoredPacket>,
+}
+
+#[derive(Eq, PartialEq, Hash)]
+struct StoredPacketIdentifier {
+	packet_id: u128,
+	channel_id: u8,
+	peer: String,
+}
+
+struct StoredPacket {
+	timer: std::time::Instant,
+	packet: Packet,
 }
 
 pub struct PeerData {
@@ -58,9 +71,4 @@ pub struct PacketHeader {
 	packet_id: u32,
 	packet_type: u8,
 	channel_id: u8,
-}
-
-pub trait PacketReadWrite {
-	type Type;
-	fn from_bytes(data: &[u8]) -> Self::Type;
 }
