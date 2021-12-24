@@ -144,12 +144,11 @@ impl Server {
 				timers_to_update.push(spi.clone());
 			}
 		}
-		for spi in timers_to_update {
+		for spi in timers_to_update { //this could probably be done better..
 			if let Some(sp) = self.stored_packets.get_mut(&spi) {
 				sp.update_timeout();
 			}
 		}
-
 	}
 
 	pub fn events_available(&self) -> bool {
