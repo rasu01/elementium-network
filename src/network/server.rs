@@ -40,13 +40,9 @@ impl Server {
 				if packet_size >= 20 { //We are not accepting packets less than this..
 
 					let mut packet = Packet::new();
-					packet.push_slice(&self.receive_buffer[0..packet_size]);
+					packet.push_bytes(&self.receive_buffer[0..packet_size]);
 
-					let a = packet.read::<u128>().unwrap();
-					let b = packet.read::<u8>().unwrap();
-					let c = packet.read::<u8>().unwrap();
-
-					let packet_header = PacketHeader::new(b, c,a);
+					let packet_header = packet.read::<PacketHeader>();
 
 					let client_address = client.to_string();
 					let is_connected = self.connections.contains_key(&client_address);
@@ -162,12 +158,10 @@ impl Server {
 		let mut packet = Packet::new();
 		let packet_header = PacketHeader::new(0, INTERNAL_CHANNEL, self.internal_packet_count);
 
-		packet.push_u128(&packet_header.packet_id);
-		packet.push_u8(&packet_header.packet_type);
-		packet.push_u8(&packet_header.channel_id);
-		packet.push_bool(&accepted);
-		packet.push_u32(&0x1); //reliable data
-		packet.push_u32(&0x1); //sequence data
+		packet.push::<PacketHeader>(&packet_header);
+		packet.push::<bool>(&accepted);
+		packet.push::<u32>(&0x1); //reliable data
+		packet.push::<u32>(&0x1); //sequence data
 
 		//store packet
 		self.internal_send(peer, &packet);
@@ -177,18 +171,14 @@ impl Server {
 	fn send_ping(&self, peer: &String) {
 		let mut packet = Packet::new();
 		let packet_header = PacketHeader::new(3, INTERNAL_CHANNEL, 0);
-		packet.push_u128(&packet_header.packet_id);
-		packet.push_u8(&packet_header.packet_type);
-		packet.push_u8(&packet_header.channel_id);
+		packet.push::<PacketHeader>(&packet_header);
 		self.internal_send(peer, &packet);
 	}
 
 	fn send_receipt(&mut self, peer: &String, packet_header: &PacketHeader) {
 		let mut packet = Packet::new();
 		let receipt_packet_header = PacketHeader::new(4, packet_header.channel_id, packet_header.packet_id);
-		packet.push_u128(&packet_header.packet_id);
-		packet.push_u8(&packet_header.packet_type);
-		packet.push_u8(&packet_header.channel_id);
+		packet.push::<PacketHeader>(&receipt_packet_header);
 		self.internal_send(peer, &packet);
 	}
 

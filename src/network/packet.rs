@@ -11,6 +11,11 @@ impl Packet {
 
     pub fn clear(&mut self) {
         self.data.clear();
+        self.reset_read_position();
+    }
+
+    pub fn reset_read_position(&mut self) {
+        self.read_position = 0;
     }
 
     pub fn slice(&self) -> &[u8] {
@@ -21,83 +26,18 @@ impl Packet {
         return self.data.len();
     }
 
-    //the write and read functions could take in structs as types too, but I advice against it if you're gonna use it with c++, since rust and c++ may have different value padding in structs.
-    pub fn read<T: Copy>(&mut self) -> Option<T> {
-        unsafe {
-            if std::mem::size_of::<T>() + self.read_position <= self.data.len() {
-                let pointer = std::mem::transmute::<* const u8, *const T>(self.data[self.read_position..self.read_position + std::mem::size_of::<T>()].as_ptr());
-                self.read_position += std::mem::size_of::<T>();
-                if let Some(value) = pointer.as_ref() {
-                    return Some(value.clone());
-                } else {
-                    return None;
-                }
-            } else {
-                return None;
-            }
-        }
-    }
-
-    //primitive write functions
-    pub fn push_u8(&mut self, value: &u8) {
-        self.data.extend_from_slice(&value.to_le_bytes());
-    }
-
-    pub fn push_u16(&mut self, value: &u16) {
-        self.data.extend_from_slice(&value.to_le_bytes());
-    }
-
-    pub fn push_u32(&mut self, value: &u32) {
-        self.data.extend_from_slice(&value.to_le_bytes());
-    }
-
-    pub fn push_u64(&mut self, value: &u64) {
-        self.data.extend_from_slice(&value.to_le_bytes());
-    }
-
-    pub fn push_u128(&mut self, value: &u128) {
-        self.data.extend_from_slice(&value.to_le_bytes());
-    }
-
-    pub fn push_i8(&mut self, value: &i8) {
-        self.data.extend_from_slice(&value.to_le_bytes());
-    }
-
-    pub fn push_i16(&mut self, value: &i16) {
-        self.data.extend_from_slice(&value.to_le_bytes());
-    }
-
-    pub fn push_i32(&mut self, value: &i32) {
-        self.data.extend_from_slice(&value.to_le_bytes());
-    }
-
-    pub fn push_i64(&mut self, value: &i64) {
-        self.data.extend_from_slice(&value.to_le_bytes());
-    }
-
-    pub fn push_i128(&mut self, value: &i128) {
-        self.data.extend_from_slice(&value.to_le_bytes());
-    }
-
-    pub fn push_f32(&mut self, value: &f32) {
-        self.data.extend_from_slice(&value.to_le_bytes());
-    }
-
-    pub fn push_f64(&mut self, value: &f32) {
-        self.data.extend_from_slice(&value.to_le_bytes());
-    }
-
-    pub fn push_bool(&mut self, value: &bool) {
-        self.data.extend_from_slice(&(*value as u8).to_le_bytes());
-    }
-
-    pub fn push_char(&mut self, value: &char) {
-        self.data.extend_from_slice(&value.to_digit(10).unwrap().to_le_bytes()); //this can probably be done better..
-    }
-
     //other push functions
-    pub fn push_slice(&mut self, slice: &[u8]) {
+    pub fn push_bytes(&mut self, slice: &[u8]) {
         self.data.extend_from_slice(slice);
+    }
+
+    pub fn push<T: PacketSerialize>(&mut self, value: &T) { // if you wish to push structs, use this and implement the PacketSerialize trait for it.
+        value.serialize(self);
+    }
+    pub fn read<T: PacketSerialize>(&mut self) -> <T as PacketSerialize>::T {
+        let (value, size) = T::deserialize(self);
+        self.read_position += size;
+        return value;
     }
 
 }

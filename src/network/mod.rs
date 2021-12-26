@@ -1,6 +1,7 @@
 pub mod server;
 pub mod packet;
 pub mod peerdata;
+pub mod packetserialize;
 
 const INTERNAL_CHANNEL: u8 = 100;
 pub enum PacketType {
@@ -72,4 +73,10 @@ pub struct PacketHeader {
 	packet_id: u128,
 	packet_type: u8,
 	channel_id: u8,
+}
+
+pub trait PacketSerialize {
+	type T;
+	fn serialize(&self, packet: &mut Packet);
+	fn deserialize(packet: &mut Packet) -> (Self::T, usize);
 }
