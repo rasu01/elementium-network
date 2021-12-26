@@ -37,68 +37,69 @@ impl Server {
 		match self.socket.recv_from(&mut self.receive_buffer) {
 			Ok((packet_size, client)) => {
 
-				if packet_size >= std::mem::size_of::<PacketHeader>() { //We are not accepting packets less than this..
+				if packet_size >= 20 { //We are not accepting packets less than this..
 
 					let mut packet = Packet::new();
-					packet.write_bytes(&self.receive_buffer[0..packet_size]);
+					packet.push_slice(&self.receive_buffer[0..packet_size]);
 
-					if let Some(packet_header) = packet.read::<PacketHeader>() {
+					let a = packet.read::<u128>().unwrap();
+					let b = packet.read::<u8>().unwrap();
+					let c = packet.read::<u8>().unwrap();
 
-						let client_address = client.to_string();
-						let is_connected = self.connections.contains_key(&client_address);
+					let packet_header = PacketHeader::new(b, c,a);
 
-						match PacketType::from_u8(packet_header.packet_type) {
+					let client_address = client.to_string();
+					let is_connected = self.connections.contains_key(&client_address);
 
-							Some(PacketType::Connect) => {
-								if !is_connected {
+					match PacketType::from_u8(packet_header.packet_type) {
 
-									if self.connections.len()  < self.max_connections {
+						Some(PacketType::Connect) => {
+							if !is_connected {
 
-										self.connections.insert(client.to_string(), PeerData::new());
+								if self.connections.len()  < self.max_connections {
 
-										let event = EventType::Connect(client.to_string());
-										self.events.push_back(event);
+									self.connections.insert(client.to_string(), PeerData::new());
 
-										self.send_connection_status(&client_address, true);
+									let event = EventType::Connect(client.to_string());
+									self.events.push_back(event);
 
-									} else {
-										//cannot connect, server is full!
-										let event = EventType::ServerFull;
-										self.events.push_back(event);
+									self.send_connection_status(&client_address, true);
 
-										self.send_connection_status(&client_address, false);
-									}
-									
+								} else {
+									//cannot connect, server is full!
+									let event = EventType::ServerFull;
+									self.events.push_back(event);
+
+									self.send_connection_status(&client_address, false);
 								}
-								self.send_receipt(&client_address, &packet_header);
-							}
-
-							Some(PacketType::Disconnect) => {
 								
 							}
-
-							Some(PacketType::Data) => {
-								
-							}
-
-							Some(PacketType::Ping) => {
-								if is_connected {
-									if let Some(connection) = self.connections.get_mut(&client_address) {
-										connection.update_timeout();
-										self.send_ping(&client_address);
-									}
-								}
-							}
-
-							Some(PacketType::Receipt) => {
-								
-							}
-
-							None => {},
+							self.send_receipt(&client_address, &packet_header);
 						}
-					}
 
-					
+						Some(PacketType::Disconnect) => {
+							
+						}
+
+						Some(PacketType::Data) => {
+							
+						}
+
+						Some(PacketType::Ping) => {
+							if is_connected {
+								if let Some(connection) = self.connections.get_mut(&client_address) {
+									connection.update_timeout();
+									self.send_ping(&client_address);
+								}
+							}
+						}
+
+						Some(PacketType::Receipt) => {
+							
+						}
+
+						None => {},
+					}
 				}
 			},
 
@@ -128,8 +129,6 @@ impl Server {
 		}
 
 		for peer in peers_to_remove {
-
-
 			//finally remove the peer and send store event
 			let event = EventType::Timeout(peer.to_string());
 			self.events.push_back(event);
@@ -161,12 +160,14 @@ impl Server {
 
 	fn send_connection_status(&mut self, peer: &String, accepted: bool) {
 		let mut packet = Packet::new();
-		let packet_header = PacketHeader::new(0, INTERNAL_CHANNEL, self.internal_packet_count as u32);
+		let packet_header = PacketHeader::new(0, INTERNAL_CHANNEL, self.internal_packet_count);
 
-		packet.write::<PacketHeader>(&packet_header);
-		packet.write::<bool>(&accepted);
-		packet.write::<u32>(&0x1); //reliable data
-		packet.write::<u32>(&0x1); //sequence data
+		packet.push_u128(&packet_header.packet_id);
+		packet.push_u8(&packet_header.packet_type);
+		packet.push_u8(&packet_header.channel_id);
+		packet.push_bool(&accepted);
+		packet.push_u32(&0x1); //reliable data
+		packet.push_u32(&0x1); //sequence data
 
 		//store packet
 		self.internal_send(peer, &packet);
@@ -176,14 +177,18 @@ impl Server {
 	fn send_ping(&self, peer: &String) {
 		let mut packet = Packet::new();
 		let packet_header = PacketHeader::new(3, INTERNAL_CHANNEL, 0);
-		packet.write::<PacketHeader>(&packet_header);
+		packet.push_u128(&packet_header.packet_id);
+		packet.push_u8(&packet_header.packet_type);
+		packet.push_u8(&packet_header.channel_id);
 		self.internal_send(peer, &packet);
 	}
 
 	fn send_receipt(&mut self, peer: &String, packet_header: &PacketHeader) {
 		let mut packet = Packet::new();
 		let receipt_packet_header = PacketHeader::new(4, packet_header.channel_id, packet_header.packet_id);
-		packet.write::<PacketHeader>(&receipt_packet_header);
+		packet.push_u128(&packet_header.packet_id);
+		packet.push_u8(&packet_header.packet_type);
+		packet.push_u8(&packet_header.channel_id);
 		self.internal_send(peer, &packet);
 	}
 

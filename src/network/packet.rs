@@ -9,6 +9,10 @@ impl Packet {
         }
     }
 
+    pub fn clear(&mut self) {
+        self.data.clear();
+    }
+
     pub fn slice(&self) -> &[u8] {
         return &self.data[0..self.len()];
     }
@@ -17,18 +21,7 @@ impl Packet {
         return self.data.len();
     }
 
-    pub fn write_bytes(&mut self, slice: &[u8]) {
-        self.data.extend_from_slice(slice);
-    }
-
-    pub fn write<T>(&mut self, value: &T) {
-        unsafe {
-            let pointer = value as *const T;
-            let size = std::mem::size_of::<T>();
-            self.data.extend_from_slice(std::slice::from_raw_parts(std::mem::transmute::<*const T, *const u8>(pointer), size));
-        }
-    }
-
+    //the write and read functions could take in structs as types too, but I advice against it if you're gonna use it with c++, since rust and c++ may have different value padding in structs.
     pub fn read<T: Copy>(&mut self) -> Option<T> {
         unsafe {
             if std::mem::size_of::<T>() + self.read_position <= self.data.len() {
@@ -44,10 +37,73 @@ impl Packet {
             }
         }
     }
+
+    //primitive write functions
+    pub fn push_u8(&mut self, value: &u8) {
+        self.data.extend_from_slice(&value.to_le_bytes());
+    }
+
+    pub fn push_u16(&mut self, value: &u16) {
+        self.data.extend_from_slice(&value.to_le_bytes());
+    }
+
+    pub fn push_u32(&mut self, value: &u32) {
+        self.data.extend_from_slice(&value.to_le_bytes());
+    }
+
+    pub fn push_u64(&mut self, value: &u64) {
+        self.data.extend_from_slice(&value.to_le_bytes());
+    }
+
+    pub fn push_u128(&mut self, value: &u128) {
+        self.data.extend_from_slice(&value.to_le_bytes());
+    }
+
+    pub fn push_i8(&mut self, value: &i8) {
+        self.data.extend_from_slice(&value.to_le_bytes());
+    }
+
+    pub fn push_i16(&mut self, value: &i16) {
+        self.data.extend_from_slice(&value.to_le_bytes());
+    }
+
+    pub fn push_i32(&mut self, value: &i32) {
+        self.data.extend_from_slice(&value.to_le_bytes());
+    }
+
+    pub fn push_i64(&mut self, value: &i64) {
+        self.data.extend_from_slice(&value.to_le_bytes());
+    }
+
+    pub fn push_i128(&mut self, value: &i128) {
+        self.data.extend_from_slice(&value.to_le_bytes());
+    }
+
+    pub fn push_f32(&mut self, value: &f32) {
+        self.data.extend_from_slice(&value.to_le_bytes());
+    }
+
+    pub fn push_f64(&mut self, value: &f32) {
+        self.data.extend_from_slice(&value.to_le_bytes());
+    }
+
+    pub fn push_bool(&mut self, value: &bool) {
+        self.data.extend_from_slice(&(*value as u8).to_le_bytes());
+    }
+
+    pub fn push_char(&mut self, value: &char) {
+        self.data.extend_from_slice(&value.to_digit(10).unwrap().to_le_bytes()); //this can probably be done better..
+    }
+
+    //other push functions
+    pub fn push_slice(&mut self, slice: &[u8]) {
+        self.data.extend_from_slice(slice);
+    }
+
 }
 
 impl PacketHeader {
-    pub fn new(packet_type: u8, channel_id: u8, packet_id: u32) -> PacketHeader {
+    pub fn new(packet_type: u8, channel_id: u8, packet_id: u128) -> PacketHeader {
         return PacketHeader {packet_type,channel_id,packet_id}
     }
 }

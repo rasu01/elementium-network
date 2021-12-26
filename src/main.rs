@@ -19,11 +19,11 @@ fn main() {
                     match event {
 
                         EventType::Connect(address) => {
-                            println!("A new client has connected \"{}\"", address);
+                            println!("A new client has connected {}", address);
                         }
 
                         EventType::Timeout(address) => {
-                            println!("A client has timed out \"{}\"", address);
+                            println!("A client has timed out {}", address);
                         }
 
                         _ => {}
