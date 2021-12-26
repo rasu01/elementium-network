@@ -4,24 +4,14 @@ pub mod peerdata;
 pub mod packetserialize;
 
 const INTERNAL_CHANNEL: u8 = 100;
+#[derive(Copy, Clone)]
 pub enum PacketType {
 	Connect = 0,
 	Disconnect = 1,
 	Data = 2,
 	Ping = 3,
 	Receipt = 4,
-}
-impl PacketType {
-	pub fn from_u8(num: u8) -> Option<PacketType> {
-		match num {
-			0 => return Some(PacketType::Connect),
-			1 => return Some(PacketType::Disconnect),
-			2 => return Some(PacketType::Data),
-			3 => return Some(PacketType::Ping),
-			4 => return Some(PacketType::Receipt),
-			_ => return None
-		}
-	}
+	Undefined = 5
 }
 
 pub enum EventType {
@@ -68,10 +58,10 @@ pub struct Packet {
 	read_position: usize,
 }
 
-#[derive(Copy,Clone)]
+#[derive(Copy, Clone)]
 pub struct PacketHeader {
 	packet_id: u128,
-	packet_type: u8,
+	packet_type: PacketType,
 	channel_id: u8,
 }
 

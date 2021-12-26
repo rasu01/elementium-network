@@ -47,9 +47,9 @@ impl Server {
 					let client_address = client.to_string();
 					let is_connected = self.connections.contains_key(&client_address);
 
-					match PacketType::from_u8(packet_header.packet_type) {
+					match packet_header.packet_type {
 
-						Some(PacketType::Connect) => {
+						PacketType::Connect => {
 							if !is_connected {
 
 								if self.connections.len()  < self.max_connections {
@@ -73,15 +73,15 @@ impl Server {
 							self.send_receipt(&client_address, &packet_header);
 						}
 
-						Some(PacketType::Disconnect) => {
+						PacketType::Disconnect => {
 							
 						}
 
-						Some(PacketType::Data) => {
+						PacketType::Data => {
 							
 						}
 
-						Some(PacketType::Ping) => {
+						PacketType::Ping => {
 							if is_connected {
 								if let Some(connection) = self.connections.get_mut(&client_address) {
 									connection.update_timeout();
@@ -90,11 +90,13 @@ impl Server {
 							}
 						}
 
-						Some(PacketType::Receipt) => {
+						PacketType::Receipt => {
 							
 						}
 
-						None => {},
+        				PacketType::Undefined => {
+							println!("Packet Header was wrongly acquired.");
+						}
 					}
 				}
 			},
@@ -156,7 +158,7 @@ impl Server {
 
 	fn send_connection_status(&mut self, peer: &String, accepted: bool) {
 		let mut packet = Packet::new();
-		let packet_header = PacketHeader::new(0, INTERNAL_CHANNEL, self.internal_packet_count);
+		let packet_header = PacketHeader::new(PacketType::Connect, INTERNAL_CHANNEL, self.internal_packet_count);
 
 		packet.push::<PacketHeader>(&packet_header);
 		packet.push::<bool>(&accepted);
@@ -170,14 +172,14 @@ impl Server {
 
 	fn send_ping(&self, peer: &String) {
 		let mut packet = Packet::new();
-		let packet_header = PacketHeader::new(3, INTERNAL_CHANNEL, 0);
+		let packet_header = PacketHeader::new(PacketType::Ping, INTERNAL_CHANNEL, 0);
 		packet.push::<PacketHeader>(&packet_header);
 		self.internal_send(peer, &packet);
 	}
 
 	fn send_receipt(&mut self, peer: &String, packet_header: &PacketHeader) {
 		let mut packet = Packet::new();
-		let receipt_packet_header = PacketHeader::new(4, packet_header.channel_id, packet_header.packet_id);
+		let receipt_packet_header = PacketHeader::new(PacketType::Receipt, packet_header.channel_id, packet_header.packet_id);
 		packet.push::<PacketHeader>(&receipt_packet_header);
 		self.internal_send(peer, &packet);
 	}

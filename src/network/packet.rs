@@ -43,7 +43,7 @@ impl Packet {
 }
 
 impl PacketHeader {
-    pub fn new(packet_type: u8, channel_id: u8, packet_id: u128) -> PacketHeader {
+    pub fn new(packet_type: PacketType, channel_id: u8, packet_id: u128) -> PacketHeader {
         return PacketHeader {packet_type,channel_id,packet_id}
     }
 }

@@ -1,4 +1,4 @@
-use super::{PacketSerialize, Packet, PacketHeader};
+use super::{PacketSerialize, Packet, PacketHeader, PacketType};
 
 //primitive types!
 impl PacketSerialize for u8 {
@@ -172,17 +172,28 @@ impl PacketSerialize for PacketHeader {
     type T = PacketHeader;
     fn serialize(&self, packet: &mut Packet) {
         packet.push::<u128>(&self.packet_id);
-        packet.push::<u8>(&self.packet_type);
+        match self.packet_type {
+            PacketType::Connect => packet.push::<u8>(&0),
+            PacketType::Disconnect => packet.push::<u8>(&1),
+            PacketType::Data => packet.push::<u8>(&2),
+            PacketType::Ping => packet.push::<u8>(&3),
+            PacketType::Receipt => packet.push::<u8>(&4),
+            PacketType::Undefined => packet.push::<u8>(&5),
+        }
         packet.push::<u8>(&self.channel_id);
     }
     fn deserialize(packet: &mut Packet) -> (Self::T, usize) {
         let id = packet.read::<u128>();
         let packet_type = packet.read::<u8>();
         let channel = packet.read::<u8>();
-        return (PacketHeader {
-            packet_id: id,
-            channel_id: channel,
-            packet_type: packet_type
-        }, 0); //since we use read here that already changes the read position, we should send a 0 here.
+
+        match packet_type {
+            0 => return (PacketHeader {packet_id: id,channel_id: channel,packet_type: PacketType::Connect}, 0),
+            1 => return (PacketHeader {packet_id: id,channel_id: channel,packet_type: PacketType::Disconnect}, 0),
+            2 => return (PacketHeader {packet_id: id,channel_id: channel,packet_type: PacketType::Data}, 0),
+            3 => return (PacketHeader {packet_id: id,channel_id: channel,packet_type: PacketType::Ping}, 0),
+            4 => return (PacketHeader {packet_id: id,channel_id: channel,packet_type: PacketType::Receipt}, 0),
+            _ => return (PacketHeader::new(PacketType::Undefined, 0, 0), 0)
+        }
     }
 }
