@@ -34,79 +34,83 @@ impl Server {
 	}
 
 	pub fn update(&mut self, sleep_time: f64) {
-		match self.socket.recv_from(&mut self.receive_buffer) {
-			Ok((packet_size, client)) => {
 
-				if packet_size >= 20 { //We are not accepting packets less than this..
+		loop {
+			match self.socket.recv_from(&mut self.receive_buffer) {
+				Ok((packet_size, client)) => {
+					if packet_size >= 20 { //We are not accepting packets less than this..
 
-					let mut packet = Packet::new();
-					packet.push_bytes(&self.receive_buffer[0..packet_size]);
-
-					let packet_header = packet.read::<PacketHeader>();
-
-					let client_address = client.to_string();
-					let is_connected = self.connections.contains_key(&client_address);
-
-					match packet_header.packet_type {
-
-						PacketType::Connect => {
-							if !is_connected {
-
-								if self.connections.len()  < self.max_connections {
-
-									self.connections.insert(client.to_string(), PeerData::new());
-
-									let event = EventType::Connect(client.to_string());
-									self.events.push_back(event);
-
-									self.send_connection_status(&client_address, true);
-
-								} else {
-									//cannot connect, server is full!
-									let event = EventType::ServerFull;
-									self.events.push_back(event);
-
-									self.send_connection_status(&client_address, false);
+						let mut packet = Packet::new();
+						packet.push_bytes(&self.receive_buffer[0..packet_size]);
+		
+						let packet_header = packet.read::<PacketHeader>();
+		
+						let client_address = client.to_string();
+						let is_connected = self.connections.contains_key(&client_address);
+		
+						match packet_header.packet_type {
+		
+							PacketType::Connect => {
+								if !is_connected {
+		
+									if self.connections.len()  < self.max_connections {
+		
+										self.connections.insert(client.to_string(), PeerData::new());
+		
+										let event = EventType::Connect(client.to_string());
+										self.events.push_back(event);
+		
+										self.send_connection_status(&client_address, true);
+		
+									} else {
+										//cannot connect, server is full!
+										let event = EventType::ServerFull;
+										self.events.push_back(event);
+		
+										self.send_connection_status(&client_address, false);
+									}
+									
 								}
+								self.send_receipt(&client_address, &packet_header);
+							}
+		
+							PacketType::Disconnect => {
 								
 							}
-							self.send_receipt(&client_address, &packet_header);
-						}
-
-						PacketType::Disconnect => {
-							
-						}
-
-						PacketType::Data => {
-							
-						}
-
-						PacketType::Ping => {
-							if is_connected {
-								if let Some(connection) = self.connections.get_mut(&client_address) {
-									connection.update_timeout();
-									self.send_ping(&client_address);
+		
+							PacketType::Data => {
+								
+							}
+		
+							PacketType::Ping => {
+								if is_connected {
+									if let Some(connection) = self.connections.get_mut(&client_address) {
+										connection.update_timeout();
+										self.send_ping(&client_address);
+									}
 								}
 							}
-						}
-
-						PacketType::Receipt => {
-							
-						}
-
-        				PacketType::Undefined => {
-							println!("Packet Header was wrongly acquired.");
+		
+							PacketType::Receipt => {
+								
+							}
+		
+							PacketType::Undefined => {
+								println!("Packet Header was wrongly acquired.");
+							}
 						}
 					}
 				}
-			},
 
-			Err(error) => {
-				if error.kind() != std::io::ErrorKind::WouldBlock {
-					println!("Error receiving packet: {}", error);
+				Err(error) => {
+					if error.kind() != std::io::ErrorKind::WouldBlock {
+						println!("Error receiving packet: {}", error);
+					}
+					break;
 				}
 			}
 		}
+
 		self.internal_update();
 		std::thread::sleep(std::time::Duration::from_secs_f64(sleep_time));
 	}
@@ -161,7 +165,7 @@ impl Server {
 		packet.push::<u32>(&0x1); //reliable data
 		packet.push::<u32>(&0x1); //sequence data
 
-		//packet.push::<String>(&String::from("日本語を試してくれてありがとう!"));
+		packet.push::<String>(&String::from("日本語を試してくれてありがとう!"));
 
 		//store packet
 		self.internal_send(peer, &packet);

@@ -53,7 +53,6 @@ pub struct PeerData {
 	packets_already_received: [std::collections::HashMap<u128, f32>; 32]
 }
 
-#[repr(packed(8))]
 pub struct Packet {
 	data: Vec<u8>,
 	read_position: usize,
