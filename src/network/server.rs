@@ -147,7 +147,7 @@ impl Server {
 			}
 		}
 	}
-	
+
 	pub fn get_event(&mut self) -> Option<EventType> {
 		match self.events.pop_front() {Some(event) => return Some(event),None => return None}
 	}
@@ -160,6 +160,8 @@ impl Server {
 		packet.push::<bool>(&accepted);
 		packet.push::<u32>(&0x1); //reliable data
 		packet.push::<u32>(&0x1); //sequence data
+
+		//packet.push::<String>(&String::from("日本語を試してくれてありがとう!"));
 
 		//store packet
 		self.internal_send(peer, &packet);
