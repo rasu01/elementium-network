@@ -10,25 +10,21 @@ fn main() {
         println!("Started server with port {}", port);
 
         loop {
-            server.update(1.0/60.0);
+            server.update(1.0/20.0);
 
-            while server.events_available() {
+            while let Some(event) = server.get_event() {
 
-                if let Some(event) = server.get_event() {
+                match event {
 
-                    match event {
-
-                        EventType::Connect(address) => {
-                            println!("A new client has connected {}", address);
-                        }
-
-                        EventType::Timeout(address) => {
-                            println!("A client has timed out {}", address);
-                        }
-
-                        _ => {}
-
+                    EventType::Connect(address) => {
+                        println!("A new client has connected {}", address);
                     }
+
+                    EventType::Timeout(address) => {
+                        println!("A client has timed out {}", address);
+                    }
+
+                    _ => {}
 
                 }
 

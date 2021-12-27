@@ -14,11 +14,12 @@ pub enum PacketType {
 	Undefined = 5
 }
 
+#[allow(dead_code)]
 pub enum EventType {
-	Connect(String),
-	Disconnect(String),
-	Timeout(String),
-	Data(Packet),
+	Connect(String), //Client Address
+	Disconnect(String), //Client Address
+	Timeout(String), //Client Address
+	Data(Packet, String), //Packet, Client Address
 	ServerFull
 }
 

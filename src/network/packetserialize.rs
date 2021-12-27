@@ -161,10 +161,17 @@ impl PacketSerialize for bool {
 impl PacketSerialize for String {
     type T = String;
     fn serialize(&self, packet: &mut Packet) {
+        packet.push::<u32>(&(self.len() as u32));
         packet.data.extend_from_slice(&self.as_bytes());
     }
     fn deserialize(packet: &mut Packet) -> (Self::T, usize) {
-        return (String::new(), 0); //TODO
+        let size = packet.read::<u32>() as usize;
+        if let Ok(string) = std::str::from_utf8(&packet.data[packet.read_position..packet.read_position+size]) {
+            return (string.to_string(), size);
+        } else {
+            println!("Cannot deserialize string because it is not in the UTF-8 format.");
+            return (String::new(), size);
+        }
     }
 }
 

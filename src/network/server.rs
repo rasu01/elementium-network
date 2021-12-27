@@ -147,11 +147,7 @@ impl Server {
 			}
 		}
 	}
-
-	pub fn events_available(&self) -> bool {
-		return self.events.len() > 0;
-	}
-
+	
 	pub fn get_event(&mut self) -> Option<EventType> {
 		match self.events.pop_front() {Some(event) => return Some(event),None => return None}
 	}
