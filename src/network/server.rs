@@ -163,7 +163,6 @@ impl Server {
 								if is_connected {
 									let spi = StoredPacketIdentifier::new(client_address, packet_header.channel_id, packet_header.packet_id);
 									if let Some(_) = self.stored_packets.remove(&spi) {
-										println!("Receipt id {} | Channel {}", spi.packet_id, spi.channel_id);
 									}
 								}
 							}
@@ -210,7 +209,6 @@ impl Server {
 					}
 				}
 				for key in packets_already_receieved_to_remove.iter() {
-					println!("removed one");
 					data.packets_already_received[i].remove(key);
 				}
 			}

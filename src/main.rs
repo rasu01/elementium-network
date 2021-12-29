@@ -15,7 +15,7 @@ fn main() {
         server.setup_channel(3, ChannelType::NonreliableDropable);
 
         loop {
-            server.update(1.0/20.0);
+            server.update(1.0 / 60.0);
 
             while let Some(event) = server.get_event() {
 
@@ -23,10 +23,6 @@ fn main() {
 
                     EventType::Connect(address) => {
                         println!("A new client has connected {}", address);
-                        let mut pack_test = Packet::new();
-
-                        pack_test.push::<String>(&String::from("日本語はめっちゃ難しいけど、勉強するのが好き！！"));
-                        server.send_to_peer(&address, 0, &pack_test);
                     }
 
                     EventType::Timeout(address) => {
