@@ -14,13 +14,24 @@ pub enum PacketType {
 	Undefined = 5
 }
 
-#[allow(dead_code)]
 pub enum EventType {
 	Connect(String), //Client Address
 	Disconnect(String), //Client Address
 	Timeout(String), //Client Address
 	Data(Packet, String), //Packet, Client Address
 	ServerFull
+}
+
+#[derive(PartialEq)]
+pub enum ChannelType {
+	Reliable,
+	Sequenced,
+	Nonreliable,
+	NonreliableDropable
+}
+
+fn get_channel_type(channel_id: u8) -> ChannelType { //TODO
+	return ChannelType::Reliable;
 }
 
 pub struct Server {
@@ -50,7 +61,7 @@ pub struct PeerData {
 	receive_packet_count: [u128; 32],
 	send_packet_count: [u128; 32],
 	stored_packets: [std::collections::HashMap<u128, Packet>; 32],
-	packets_already_received: [std::collections::HashMap<u128, f32>; 32]
+	packets_already_received: [std::collections::HashMap<u128, std::time::Instant>; 32]
 }
 
 pub struct Packet {

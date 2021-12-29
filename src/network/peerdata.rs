@@ -21,7 +21,4 @@ impl PeerData {
 	pub fn update_timeout(&mut self) {
 		self.timer = std::time::Instant::now();
 	}
-	pub fn get_receive_channel_count(&self, channel: u8) -> u128 {
-		return self.receive_packet_count[channel as usize];
-	}
 }

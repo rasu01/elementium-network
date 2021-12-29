@@ -42,6 +42,12 @@ impl Packet {
 
 }
 
+impl Clone for Packet {
+    fn clone(&self) -> Self {
+        Self { data: self.data.clone(), read_position: self.read_position }
+    }
+}
+
 impl PacketHeader {
     pub fn new(packet_type: PacketType, channel_id: u8, packet_id: u128) -> PacketHeader {
         return PacketHeader {packet_type,channel_id,packet_id}
@@ -49,10 +55,10 @@ impl PacketHeader {
 }
 
 impl StoredPacket {
-    pub fn new(packet: Packet) -> StoredPacket {
+    pub fn new(packet: &Packet) -> StoredPacket {
         return StoredPacket {
             timer: std::time::Instant::now(),
-            packet: packet, //since the stored packet takes ownership here, this function should be called last.
+            packet: packet.clone(), //since the stored packet takes ownership here, this function should be called last.
         }
     }
     pub fn has_timed_out(&self) -> bool {

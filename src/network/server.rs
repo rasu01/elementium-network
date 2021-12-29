@@ -1,3 +1,5 @@
+use std::collections::VecDeque;
+
 use super::*;
 
 impl Server {
@@ -75,11 +77,75 @@ impl Server {
 							}
 		
 							PacketType::Disconnect => {
-								
+
+								self.send_receipt(&client_address, &packet_header);
+								if is_connected {
+									self.connections.remove(&client_address);
+									self.events.push_back(EventType::Disconnect(client_address));
+								}
 							}
 		
 							PacketType::Data => {
-								
+								if is_connected {
+
+									match super::get_channel_type(packet_header.channel_id) {
+
+										ChannelType::Reliable => {
+											self.send_receipt(&client_address, &packet_header);
+											if let Some(peer_data) = self.connections.get_mut(&client_address) {
+												if !peer_data.packets_already_received[packet_header.channel_id as usize].contains_key(&packet_header.packet_id) {
+													peer_data.packets_already_received[packet_header.channel_id as usize].insert(packet_header.packet_id, std::time::Instant::now());
+													self.events.push_back(EventType::Data(packet, client_address));
+												}
+											}
+										}
+
+										ChannelType::Sequenced => {
+											self.send_receipt(&client_address, &packet_header);
+											if let Some(peer_data) = self.connections.get_mut(&client_address) {
+
+												//check if the packet isn't an old one
+												if !peer_data.packets_already_received[packet_header.channel_id as usize].contains_key(&packet_header.packet_id) {
+
+													//queue the data if it's the packet after the recently receieved one. (aka, is it in order?)
+													if peer_data.receive_packet_count[packet_header.channel_id as usize] == packet_header.packet_id {
+														peer_data.receive_packet_count[packet_header.channel_id as usize] += 1;
+														self.events.push_back(EventType::Data(packet, client_address.clone()));
+													} else { //else queue it to wait for the packets in between this and the packet in order to arrive.
+														peer_data.stored_packets[packet_header.channel_id as usize].insert(packet_header.packet_id, packet);
+													}
+
+													let mut stored_packets_to_remove: VecDeque<u128> = VecDeque::new(); //TODO: move this into the server struct, so we don't need to reallocate it every time!
+													//after this we should check if we can queue some of the stored packets(if there are any :P)
+													while let Some((id, stored_packet)) = peer_data.stored_packets[packet_header.channel_id as usize].get_key_value(&peer_data.receive_packet_count[packet_header.channel_id as usize]) {
+														self.events.push_back(EventType::Data(stored_packet.clone(), client_address.clone()));
+														peer_data.receive_packet_count[packet_header.channel_id as usize] += 1;
+														stored_packets_to_remove.push_back(*id);
+													}
+													//lastly remove the stored packets.
+													for id in stored_packets_to_remove {
+														peer_data.stored_packets[packet_header.channel_id as usize].remove(&id);
+													}
+													peer_data.packets_already_received[packet_header.channel_id as usize].insert(packet_header.packet_id, std::time::Instant::now());
+												}
+											}
+										}
+
+										ChannelType::Nonreliable => {
+											self.events.push_back(EventType::Data(packet, client_address));
+										}
+
+										ChannelType::NonreliableDropable => {
+											if let Some(peer_data) = self.connections.get_mut(&client_address) {
+												if peer_data.receive_packet_count[packet_header.channel_id as usize] < packet_header.packet_id {
+													self.events.push_back(EventType::Data(packet, client_address));
+													peer_data.receive_packet_count[packet_header.channel_id as usize] = packet_header.packet_id;
+												}
+											}
+										}
+									}
+
+								}
 							}
 		
 							PacketType::Ping => {
@@ -92,7 +158,12 @@ impl Server {
 							}
 		
 							PacketType::Receipt => {
-								
+								if is_connected {
+									let spi = StoredPacketIdentifier::new(client_address, packet_header.channel_id, packet_header.packet_id);
+									if let Some(_) = self.stored_packets.remove(&spi) {
+										println!("Receipt id {} | Channel {}", spi.packet_id, spi.channel_id);
+									}
+								}
 							}
 		
 							PacketType::Undefined => {
@@ -131,6 +202,19 @@ impl Server {
 		}
 
 		for peer in peers_to_remove {
+
+			let mut stored_packets_to_remove = std::collections::VecDeque::new();
+			//before we do this, we remove all the stored packets for this peer.
+			for (spi, _) in &self.stored_packets {
+				if spi.peer == peer {
+					stored_packets_to_remove.push_back(spi.clone());
+				}
+			}
+
+			while let Some(spi) = stored_packets_to_remove.pop_front() {
+				self.stored_packets.remove(&spi);
+			}
+
 			//finally remove the peer and send store event
 			let event = EventType::Timeout(peer.to_string());
 			self.events.push_back(event);
@@ -167,8 +251,8 @@ impl Server {
 
 		packet.push::<String>(&String::from("日本語を試してくれてありがとう!"));
 
-		//store packet
 		self.internal_send(peer, &packet);
+		self.store_packet(&peer, INTERNAL_CHANNEL, self.internal_packet_count, &packet);
 		self.internal_packet_count += 1;
 	}
 
@@ -192,6 +276,46 @@ impl Server {
 			Err(e ) => {
 				println!("Unable to send. Error: {}", e);
 			}
+		}
+	}
+
+	fn store_packet(&mut self, peer: &String, channel: u8, packet_id: u128, packet: &Packet) {
+		let spi = StoredPacketIdentifier::new(peer.clone(), channel, packet_id);
+		let sp = StoredPacket::new(&packet);
+		self.stored_packets.insert(spi, sp);
+	}
+
+	#[allow(dead_code)]
+	pub fn send_to_peer(&mut self, peer: &String, channel: u8, packet: &Packet) {
+
+		if let Some(peer_data) = self.connections.get_mut(peer) { //can this be done faster? Add packet header at the end of the packet instead..
+
+			let mut new_packet = Packet::new();
+			new_packet.push::<PacketHeader>(&PacketHeader::new(PacketType::Data, channel, peer_data.send_packet_count[channel as usize]));
+			new_packet.push_bytes(&packet.data[0..packet.len()]);
+
+			let packet_id = peer_data.send_packet_count[channel as usize];
+			peer_data.send_packet_count[channel as usize] += 1;
+
+			let channel_type = get_channel_type(channel);
+			if channel_type == ChannelType::Reliable || channel_type == ChannelType::Sequenced {
+				self.store_packet(peer, channel, packet_id, &new_packet);
+			}
+			self.internal_send(&peer, &new_packet);
+			
+		} else {
+			println!("WARNING! Sending to a non-connected peer.");
+		}
+	}
+
+	#[allow(dead_code)]
+	pub fn send_to_all(&mut self, channel: u8, packet: &Packet) {
+		let mut peers = VecDeque::new();
+		for peer in self.connections.keys() {
+			peers.push_back(peer.clone());
+		}
+		for peer in peers {
+			self.send_to_peer(&peer, channel, packet);
 		}
 	}
 }
