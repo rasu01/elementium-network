@@ -190,7 +190,7 @@ impl Server {
 
 		let mut peers_to_remove: Vec<String> = Vec::new();
 
-		for (peer, data) in &self.connections {
+		for (peer, data) in self.connections.iter_mut() {
 
 			//remove timed out peers
 			if data.has_timed_out() {
@@ -198,7 +198,20 @@ impl Server {
 				continue;
 			}
 
-			//TODO: check already received packets timeouts.
+			let mut packets_already_receieved_to_remove: VecDeque<u128> = VecDeque::new(); //TODO: also move this into the struct to make sure we dont allocate it over and over again. speed improve.
+			//check already received packets timeouts.
+			for i in 0..32 {
+				packets_already_receieved_to_remove.clear();
+				for (key, timer) in &data.packets_already_received[i] {
+					if timer.elapsed().as_millis() >= 5000 {
+						packets_already_receieved_to_remove.push_back(*key);
+					}
+				}
+				for key in packets_already_receieved_to_remove.iter() {
+					println!("removed one");
+					data.packets_already_received[i].remove(key);
+				}
+			}
 		}
 
 		for peer in peers_to_remove {
@@ -248,8 +261,6 @@ impl Server {
 		packet.push::<bool>(&accepted);
 		packet.push::<u32>(&0x1); //reliable data
 		packet.push::<u32>(&0x1); //sequence data
-
-		packet.push::<String>(&String::from("日本語を試してくれてありがとう!"));
 
 		self.internal_send(peer, &packet);
 		self.store_packet(&peer, INTERNAL_CHANNEL, self.internal_packet_count, &packet);
