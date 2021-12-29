@@ -30,10 +30,6 @@ pub enum ChannelType {
 	NonreliableDropable
 }
 
-fn get_channel_type(channel_id: u8) -> ChannelType { //TODO
-	return ChannelType::Reliable;
-}
-
 pub struct Server {
 	socket: std::net::UdpSocket,
 	max_connections: usize,
@@ -42,6 +38,8 @@ pub struct Server {
 	events: std::collections::VecDeque<EventType>,
 	internal_packet_count: u128,
 	stored_packets: std::collections::HashMap<StoredPacketIdentifier, StoredPacket>,
+	sequence: u32,
+	reliable: u32
 }
 
 #[derive(Eq, PartialEq, Hash)]

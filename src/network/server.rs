@@ -19,7 +19,9 @@ impl Server {
 							receive_buffer: [0; 60000],
 							events: std::collections::VecDeque::new(),
 							internal_packet_count: 0,
-							stored_packets: std::collections::HashMap::new()
+							stored_packets: std::collections::HashMap::new(),
+							sequence: 0,
+							reliable: 0
 						});
 					}
 
@@ -42,7 +44,7 @@ impl Server {
 				Ok((packet_size, client)) => {
 					if packet_size >= 20 { //We are not accepting packets less than this..
 
-						let mut packet = Packet::new();
+						let mut packet = Packet::new(); //TODO: move into struct
 						packet.push_bytes(&self.receive_buffer[0..packet_size]);
 		
 						let packet_header = packet.read::<PacketHeader>();
@@ -88,7 +90,7 @@ impl Server {
 							PacketType::Data => {
 								if is_connected {
 
-									match super::get_channel_type(packet_header.channel_id) {
+									match self.get_channel_type(packet_header.channel_id) {
 
 										ChannelType::Reliable => {
 											self.send_receipt(&client_address, &packet_header);
@@ -137,7 +139,7 @@ impl Server {
 
 										ChannelType::NonreliableDropable => {
 											if let Some(peer_data) = self.connections.get_mut(&client_address) {
-												if peer_data.receive_packet_count[packet_header.channel_id as usize] < packet_header.packet_id {
+												if peer_data.receive_packet_count[packet_header.channel_id as usize] < packet_header.packet_id || packet_header.packet_id == 0 {
 													self.events.push_back(EventType::Data(packet, client_address));
 													peer_data.receive_packet_count[packet_header.channel_id as usize] = packet_header.packet_id;
 												}
@@ -259,8 +261,8 @@ impl Server {
 
 		packet.push::<PacketHeader>(&packet_header);
 		packet.push::<bool>(&accepted);
-		packet.push::<u32>(&0x1); //reliable data
-		packet.push::<u32>(&0x1); //sequence data
+		packet.push::<u32>(&self.reliable); //reliable data
+		packet.push::<u32>(&self.sequence); //sequence data
 
 		self.internal_send(peer, &packet);
 		self.store_packet(&peer, INTERNAL_CHANNEL, self.internal_packet_count, &packet);
@@ -308,7 +310,7 @@ impl Server {
 			let packet_id = peer_data.send_packet_count[channel as usize];
 			peer_data.send_packet_count[channel as usize] += 1;
 
-			let channel_type = get_channel_type(channel);
+			let channel_type = self.get_channel_type(channel);
 			if channel_type == ChannelType::Reliable || channel_type == ChannelType::Sequenced {
 				self.store_packet(peer, channel, packet_id, &new_packet);
 			}
@@ -327,6 +329,47 @@ impl Server {
 		}
 		for peer in peers {
 			self.send_to_peer(&peer, channel, packet);
+		}
+	}
+
+	fn get_channel_type(&self, channel_id: u8) -> ChannelType {	
+		let is_sequenced = (self.sequence >> channel_id) & 0x1 == 1;
+		let is_reliable = (self.reliable >> channel_id) & 0x1 == 1;
+
+		if is_sequenced && is_reliable {
+			return ChannelType::Sequenced;
+		} else if !is_sequenced && is_reliable {
+			return ChannelType::Reliable;
+		} else if is_sequenced && !is_reliable {
+			return ChannelType::NonreliableDropable; 
+		} else{
+			return ChannelType::Nonreliable;
+		}
+	}
+
+	#[allow(dead_code)]
+	pub fn setup_channel(&mut self, channel: u8, channel_type: ChannelType) {
+
+		assert!(channel < 32, "Channel id too high. Range is 0..32");
+
+		let rel;
+		let seq;
+		match channel_type {
+			ChannelType::Reliable => {seq = false; rel = true;}
+			ChannelType::Sequenced => {seq = true; rel = true;}
+			ChannelType::Nonreliable => {seq = false; rel = false;}
+			ChannelType::NonreliableDropable => {seq = true; rel = false;}
+		}
+
+		if rel {
+			self.reliable = self.reliable | (1 << channel);
+		} else {
+			self.reliable = !(!self.reliable | (1 << channel));
+		}
+		if seq {
+			self.sequence = self.sequence | (1 << channel);
+		} else {
+			self.sequence = !(!self.sequence | (1 << channel));
 		}
 	}
 }
