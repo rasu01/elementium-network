@@ -47,8 +47,10 @@ impl Server {
 						let mut packet = Packet::new(); //TODO: move into struct
 						packet.push_bytes(&self.receive_buffer[0..packet_size]);
 		
+						packet.set_read_position(packet_size - PACKET_HEADER_SIZE); //pack header is at the end.
 						let packet_header = packet.read::<PacketHeader>();
-		
+						packet.reset_read_position(); //now reset it to the start again
+
 						let client_address = client.to_string();
 						let is_connected = self.connections.contains_key(&client_address);
 		
@@ -253,10 +255,10 @@ impl Server {
 		let mut packet = Packet::new();
 		let packet_header = PacketHeader::new(PacketType::Connect, INTERNAL_CHANNEL, self.internal_packet_count);
 
-		packet.push::<PacketHeader>(&packet_header);
 		packet.push::<bool>(&accepted);
 		packet.push::<u32>(&self.reliable); //reliable data
 		packet.push::<u32>(&self.sequence); //sequence data
+		packet.push::<PacketHeader>(&packet_header); //packet header at the end!
 
 		self.internal_send(peer, &packet);
 		self.store_packet(&peer, INTERNAL_CHANNEL, self.internal_packet_count, &packet);
@@ -298,8 +300,10 @@ impl Server {
 		if let Some(peer_data) = self.connections.get_mut(peer) { //can this be done faster? Add packet header at the end of the packet instead..
 
 			let mut new_packet = Packet::new();
-			new_packet.push::<PacketHeader>(&PacketHeader::new(PacketType::Data, channel, peer_data.send_packet_count[channel as usize]));
 			new_packet.push_bytes(&packet.data[0..packet.len()]);
+
+			//add packet header to the end
+			new_packet.push::<PacketHeader>(&PacketHeader::new(PacketType::Data, channel, peer_data.send_packet_count[channel as usize]));
 
 			let packet_id = peer_data.send_packet_count[channel as usize];
 			peer_data.send_packet_count[channel as usize] += 1;

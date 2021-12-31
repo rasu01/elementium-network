@@ -18,6 +18,10 @@ impl Packet {
         self.read_position = 0;
     }
 
+    pub fn set_read_position(&mut self, position: usize) {
+        self.read_position = position;
+    }
+
     pub fn slice(&self) -> &[u8] {
         return &self.data[0..self.len()];
     }
