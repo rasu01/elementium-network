@@ -55,7 +55,7 @@ struct StoredPacket {
 	packet: Packet,
 }
 
-pub struct PeerData {
+struct PeerData {
 	timer: std::time::Instant,
 	receive_packet_count: [u128; 32],
 	send_packet_count: [u128; 32],
@@ -69,7 +69,7 @@ pub struct Packet {
 }
 
 #[derive(Copy, Clone)]
-pub struct PacketHeader {
+struct PacketHeader {
 	packet_id: u128,
 	packet_type: PacketType,
 	channel_id: u8,

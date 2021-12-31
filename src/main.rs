@@ -27,7 +27,7 @@ fn main() {
                         let mut packet = Packet::new();
                         packet.push::<String>(&String::from("Rustからstringです!"));
 
-                        server.send_to_peer(&address, 0, &packet);
+                        server.send_to_peer(&address, 0, packet);
                     }
 
                     EventType::Timeout(address) => {
@@ -41,7 +41,6 @@ fn main() {
                     _ => {}
 
                 }
-
             }
         }
 

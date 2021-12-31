@@ -295,24 +295,21 @@ impl Server {
 	}
 
 	#[allow(dead_code)]
-	pub fn send_to_peer(&mut self, peer: &String, channel: u8, packet: &Packet) {
+	pub fn send_to_peer(&mut self, peer: &String, channel: u8, mut packet: Packet) {
 
 		if let Some(peer_data) = self.connections.get_mut(peer) { //can this be done faster? Add packet header at the end of the packet instead..
 
-			let mut new_packet = Packet::new();
-			new_packet.push_bytes(&packet.data[0..packet.len()]);
-
 			//add packet header to the end
-			new_packet.push::<PacketHeader>(&PacketHeader::new(PacketType::Data, channel, peer_data.send_packet_count[channel as usize]));
+			packet.push::<PacketHeader>(&PacketHeader::new(PacketType::Data, channel, peer_data.send_packet_count[channel as usize]));
 
 			let packet_id = peer_data.send_packet_count[channel as usize];
 			peer_data.send_packet_count[channel as usize] += 1;
 
 			let channel_type = self.get_channel_type(channel);
 			if channel_type == ChannelType::Reliable || channel_type == ChannelType::Sequenced {
-				self.store_packet(peer, channel, packet_id, &new_packet);
+				self.store_packet(peer, channel, packet_id, &packet);
 			}
-			self.internal_send(&peer, &new_packet);
+			self.internal_send(&peer, &packet);
 			
 		} else {
 			println!("WARNING! Sending to a non-connected peer.");
@@ -320,13 +317,13 @@ impl Server {
 	}
 
 	#[allow(dead_code)]
-	pub fn send_to_all(&mut self, channel: u8, packet: &Packet) {
+	pub fn send_to_all(&mut self, channel: u8, packet: Packet) {
 		let mut peers = VecDeque::new();
 		for peer in self.connections.keys() {
 			peers.push_back(peer.clone());
 		}
 		for peer in peers {
-			self.send_to_peer(&peer, channel, packet);
+			self.send_to_peer(&peer, channel, packet.clone());
 		}
 	}
 
