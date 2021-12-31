@@ -20,7 +20,7 @@ pub enum EventType {
 	Disconnect(String), //Client Address
 	Timeout(String), //Client Address
 	Data(Packet, String), //Packet, Client Address
-	ServerFull
+	ServerFull(String) //Client Address
 }
 
 #[derive(PartialEq)]

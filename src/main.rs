@@ -6,7 +6,7 @@ fn main() {
 
     let port = 25501;
 
-    if let Ok(mut server) = Server::new(port, 10) {
+    if let Ok(mut server) = Server::new(port, 1) {
         println!("Started server with port {}", port);
 
         server.setup_channel(0, ChannelType::Reliable);
@@ -28,11 +28,14 @@ fn main() {
                         packet.push::<String>(&String::from("Rustからstringです!"));
 
                         server.send_to_peer(&address, 0, &packet);
-
                     }
 
                     EventType::Timeout(address) => {
                         println!("A client has timed out {}", address);
+                    }
+
+                    EventType::ServerFull(address) => {
+                        println!("Client {} tried to connect, but the server is full.", address);
                     }
 
                     _ => {}

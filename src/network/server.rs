@@ -68,9 +68,8 @@ impl Server {
 		
 									} else {
 										//cannot connect, server is full!
-										let event = EventType::ServerFull;
+										let event = EventType::ServerFull(client_address.clone());
 										self.events.push_back(event);
-		
 										self.send_connection_status(&client_address, false);
 									}
 									
@@ -160,11 +159,8 @@ impl Server {
 							}
 		
 							PacketType::Receipt => {
-								if is_connected {
-									let spi = StoredPacketIdentifier::new(client_address, packet_header.channel_id, packet_header.packet_id);
-									if let Some(_) = self.stored_packets.remove(&spi) {
-									}
-								}
+								let spi = StoredPacketIdentifier::new(client_address, packet_header.channel_id, packet_header.packet_id);
+								self.stored_packets.remove(&spi);
 							}
 		
 							PacketType::Undefined => {
