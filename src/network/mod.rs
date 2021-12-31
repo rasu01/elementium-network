@@ -4,6 +4,7 @@ pub mod peerdata;
 pub mod packetserialize;
 
 const INTERNAL_CHANNEL: u8 = 100;
+const PACKET_HEADER_SIZE: usize = 18;
 #[derive(Copy, Clone)]
 pub enum PacketType {
 	Connect = 0,

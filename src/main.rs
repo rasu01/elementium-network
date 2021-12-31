@@ -23,6 +23,12 @@ fn main() {
 
                     EventType::Connect(address) => {
                         println!("A new client has connected {}", address);
+
+                        let mut packet = Packet::new();
+                        packet.push::<String>(&String::from("Rustからstringです!"));
+
+                        server.send_to_peer(&address, 0, &packet);
+
                     }
 
                     EventType::Timeout(address) => {

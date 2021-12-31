@@ -42,7 +42,7 @@ impl Server {
 		loop {
 			match self.socket.recv_from(&mut self.receive_buffer) {
 				Ok((packet_size, client)) => {
-					if packet_size >= 20 { //We are not accepting packets less than this..
+					if packet_size >= PACKET_HEADER_SIZE { //We are not accepting packets less than this..
 
 						let mut packet = Packet::new(); //TODO: move into struct
 						packet.push_bytes(&self.receive_buffer[0..packet_size]);
