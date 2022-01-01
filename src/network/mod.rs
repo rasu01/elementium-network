@@ -43,7 +43,6 @@ pub struct Server {
 	stored_packets: std::collections::HashMap<StoredPacketIdentifier, StoredPacket>,
 	sequence: u32,
 	reliable: u32,
-	packets_already_receieved_to_remove: VecDeque<u128>,
 	stored_packets_to_remove: VecDeque<u128>,
 }
 

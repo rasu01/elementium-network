@@ -22,7 +22,6 @@ impl Server {
 							stored_packets: std::collections::HashMap::new(),
 							sequence: 0,
 							reliable: 0,
-							packets_already_receieved_to_remove: VecDeque::new(),
 							stored_packets_to_remove: VecDeque::new()
 						});
 					}
@@ -189,50 +188,23 @@ impl Server {
 
 	pub fn internal_update(&mut self) {
 
-		let mut peers_to_remove: Vec<String> = Vec::new();
-
-		for (peer, data) in self.connections.iter_mut() {
-
-			//remove timed out peers
+		self.connections.retain(|peer, data | {
 			if data.has_timed_out() {
-				peers_to_remove.push(peer.to_string());
-				continue;
-			}
+				self.stored_packets.retain(|spi, _| spi.peer != peer.to_string()); //remove stored packets
 
-			self.packets_already_receieved_to_remove.clear();
-			//check already received packets timeouts.
-			for i in 0..32 {
-				self.packets_already_receieved_to_remove.clear();
-				for (key, timer) in &data.packets_already_received[i] {
-					if timer.elapsed().as_millis() >= 5000 {
-						self.packets_already_receieved_to_remove.push_back(*key);
-					}
+				//send event
+				let event = EventType::Timeout(peer.to_string());
+				self.events.push_back(event);
+				return false;
+			} else {
+
+				//check already received packets timeouts.
+				for i in 0..32 {
+					data.packets_already_received[i].retain(|_,  &mut timer| !(timer.elapsed().as_millis() >= 5000));
 				}
-				for key in self.packets_already_receieved_to_remove.iter() {
-					data.packets_already_received[i].remove(key);
-				}
+				return true;
 			}
-		}
-
-		for peer in peers_to_remove {
-
-			let mut stored_packets_to_remove = std::collections::VecDeque::new();
-			//before we do this, we remove all the stored packets for this peer.
-			for (spi, _) in &self.stored_packets {
-				if spi.peer == peer {
-					stored_packets_to_remove.push_back(spi.clone());
-				}
-			}
-
-			while let Some(spi) = stored_packets_to_remove.pop_front() {
-				self.stored_packets.remove(&spi);
-			}
-
-			//finally remove the peer and send store event
-			let event = EventType::Timeout(peer.to_string());
-			self.events.push_back(event);
-			self.connections.remove(&peer);
-		}
+		});
 
 		//check the stored packets timers
 		let mut timers_to_update: Vec<StoredPacketIdentifier> = Vec::new();
