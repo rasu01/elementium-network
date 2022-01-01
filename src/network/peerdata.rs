@@ -6,7 +6,7 @@ impl PeerData {
 			timer: std::time::Instant::now(),
 			receive_packet_count: [0u128; 32],
 			send_packet_count: [0u128; 32],
-			stored_packets: Default::default(),
+			stored_sequenced_packets: Default::default(),
 			packets_already_received: Default::default()
 		}
 	}

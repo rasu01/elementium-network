@@ -21,7 +21,9 @@ impl Server {
 							internal_packet_count: 0,
 							stored_packets: std::collections::HashMap::new(),
 							sequence: 0,
-							reliable: 0
+							reliable: 0,
+							packets_already_receieved_to_remove: VecDeque::new(),
+							stored_packets_to_remove: VecDeque::new()
 						});
 					}
 
@@ -115,19 +117,19 @@ impl Server {
 														peer_data.receive_packet_count[packet_header.channel_id as usize] += 1;
 														self.events.push_back(EventType::Data(packet, client_address.clone()));
 													} else { //else queue it to wait for the packets in between this and the packet in order to arrive.
-														peer_data.stored_packets[packet_header.channel_id as usize].insert(packet_header.packet_id, packet);
+														peer_data.stored_sequenced_packets[packet_header.channel_id as usize].insert(packet_header.packet_id, packet);
 													}
 
-													let mut stored_packets_to_remove: VecDeque<u128> = VecDeque::new(); //TODO: move this into the server struct, so we don't need to reallocate it every time!
+													self.stored_packets_to_remove.clear();
 													//after this we should check if we can queue some of the stored packets(if there are any :P)
-													while let Some((id, stored_packet)) = peer_data.stored_packets[packet_header.channel_id as usize].get_key_value(&peer_data.receive_packet_count[packet_header.channel_id as usize]) {
+													while let Some((id, stored_packet)) = peer_data.stored_sequenced_packets[packet_header.channel_id as usize].get_key_value(&peer_data.receive_packet_count[packet_header.channel_id as usize]) {
 														self.events.push_back(EventType::Data(stored_packet.clone(), client_address.clone()));
 														peer_data.receive_packet_count[packet_header.channel_id as usize] += 1;
-														stored_packets_to_remove.push_back(*id);
+														self.stored_packets_to_remove.push_back(*id);
 													}
 													//lastly remove the stored packets.
-													for id in stored_packets_to_remove {
-														peer_data.stored_packets[packet_header.channel_id as usize].remove(&id);
+													for id in &self.stored_packets_to_remove {
+														peer_data.stored_sequenced_packets[packet_header.channel_id as usize].remove(&id);
 													}
 													peer_data.packets_already_received[packet_header.channel_id as usize].insert(packet_header.packet_id, std::time::Instant::now());
 												}
@@ -197,16 +199,16 @@ impl Server {
 				continue;
 			}
 
-			let mut packets_already_receieved_to_remove: VecDeque<u128> = VecDeque::new(); //TODO: also move this into the struct to make sure we dont allocate it over and over again. speed improve.
+			self.packets_already_receieved_to_remove.clear();
 			//check already received packets timeouts.
 			for i in 0..32 {
-				packets_already_receieved_to_remove.clear();
+				self.packets_already_receieved_to_remove.clear();
 				for (key, timer) in &data.packets_already_received[i] {
 					if timer.elapsed().as_millis() >= 5000 {
-						packets_already_receieved_to_remove.push_back(*key);
+						self.packets_already_receieved_to_remove.push_back(*key);
 					}
 				}
-				for key in packets_already_receieved_to_remove.iter() {
+				for key in self.packets_already_receieved_to_remove.iter() {
 					data.packets_already_received[i].remove(key);
 				}
 			}

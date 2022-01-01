@@ -1,3 +1,5 @@
+use std::collections::VecDeque;
+
 pub mod server;
 pub mod packet;
 pub mod peerdata;
@@ -7,12 +9,12 @@ const INTERNAL_CHANNEL: u8 = 100;
 const PACKET_HEADER_SIZE: usize = 18;
 #[derive(Copy, Clone)]
 pub enum PacketType {
-	Connect = 0,
-	Disconnect = 1,
-	Data = 2,
-	Ping = 3,
-	Receipt = 4,
-	Undefined = 5
+	Connect,
+	Disconnect,
+	Data,
+	Ping,
+	Receipt,
+	Undefined
 }
 
 pub enum EventType {
@@ -40,7 +42,9 @@ pub struct Server {
 	internal_packet_count: u128,
 	stored_packets: std::collections::HashMap<StoredPacketIdentifier, StoredPacket>,
 	sequence: u32,
-	reliable: u32
+	reliable: u32,
+	packets_already_receieved_to_remove: VecDeque<u128>,
+	stored_packets_to_remove: VecDeque<u128>,
 }
 
 #[derive(Eq, PartialEq, Hash)]
@@ -59,7 +63,7 @@ struct PeerData {
 	timer: std::time::Instant,
 	receive_packet_count: [u128; 32],
 	send_packet_count: [u128; 32],
-	stored_packets: [std::collections::HashMap<u128, Packet>; 32],
+	stored_sequenced_packets: [std::collections::HashMap<u128, Packet>; 32],
 	packets_already_received: [std::collections::HashMap<u128, std::time::Instant>; 32]
 }
 
