@@ -1,6 +1,7 @@
 use std::collections::VecDeque;
 
 pub mod server;
+pub mod client;
 pub mod packet;
 pub mod peerdata;
 pub mod packetserialize;
@@ -44,6 +45,15 @@ pub struct Server {
 	sequence: u32,
 	reliable: u32,
 	stored_packets_to_remove: VecDeque<u128>,
+}
+
+pub struct Client {
+	socket: std::net::UdpSocket,
+	receive_buffer: [u8; 60000],
+	address: String,
+	sequence: u32,
+	reliable: u32,
+	events: std::collections::VecDeque<EventType>,
 }
 
 #[derive(Eq, PartialEq, Hash)]
