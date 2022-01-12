@@ -18,12 +18,22 @@ pub enum PacketType {
 	Undefined
 }
 
-pub enum EventType {
+pub enum ServerEvent {
 	Connect(String), //Client Address
 	Disconnect(String), //Client Address
 	Timeout(String), //Client Address
 	Data(Packet, String), //Packet, Client Address
-	ServerFull(String) //Client Address
+	ServerFull(String), //Client Address
+	Ping(String), //Client address
+}
+
+pub enum ClientEvent {
+	Connect,
+	ConnectionDenied,
+	Disconnect,
+	Timeout,
+	Data(Packet), //Packet
+	Ping,
 }
 
 #[derive(PartialEq)]
@@ -39,7 +49,7 @@ pub struct Server {
 	max_connections: usize,
 	connections: std::collections::HashMap<String, PeerData>,
 	receive_buffer: [u8; 60000],
-	events: std::collections::VecDeque<EventType>,
+	events: std::collections::VecDeque<ServerEvent>,
 	internal_packet_count: u128,
 	stored_packets: std::collections::HashMap<StoredPacketIdentifier, StoredPacket>,
 	sequence: u32,
@@ -53,7 +63,11 @@ pub struct Client {
 	address: String,
 	sequence: u32,
 	reliable: u32,
-	events: std::collections::VecDeque<EventType>,
+	is_connected: bool,
+	events: std::collections::VecDeque<ClientEvent>,
+	stored_packets: std::collections::HashMap<StoredPacketIdentifier, StoredPacket>,
+	connection_timeout: std::time::Instant,
+	internal_packet_count: u128,
 }
 
 #[derive(Eq, PartialEq, Hash)]

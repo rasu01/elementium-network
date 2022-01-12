@@ -64,14 +64,14 @@ impl Server {
 		
 										self.connections.insert(client.to_string(), PeerData::new());
 		
-										let event = EventType::Connect(client.to_string());
+										let event = ServerEvent::Connect(client.to_string());
 										self.events.push_back(event);
 		
 										self.send_connection_status(&client_address, true);
 		
 									} else {
 										//cannot connect, server is full!
-										let event = EventType::ServerFull(client_address.clone());
+										let event = ServerEvent::ServerFull(client_address.clone());
 										self.events.push_back(event);
 										self.send_connection_status(&client_address, false);
 									}
@@ -85,7 +85,7 @@ impl Server {
 								self.send_receipt(&client_address, &packet_header);
 								if is_connected {
 									self.connections.remove(&client_address);
-									self.events.push_back(EventType::Disconnect(client_address));
+									self.events.push_back(ServerEvent::Disconnect(client_address));
 								}
 							}
 		
@@ -99,7 +99,7 @@ impl Server {
 											if let Some(peer_data) = self.connections.get_mut(&client_address) {
 												if !peer_data.packets_already_received[packet_header.channel_id as usize].contains_key(&packet_header.packet_id) {
 													peer_data.packets_already_received[packet_header.channel_id as usize].insert(packet_header.packet_id, std::time::Instant::now());
-													self.events.push_back(EventType::Data(packet, client_address));
+													self.events.push_back(ServerEvent::Data(packet, client_address));
 												}
 											}
 										}
@@ -114,7 +114,7 @@ impl Server {
 													//queue the data if it's the packet after the recently receieved one. (aka, is it in order?)
 													if peer_data.receive_packet_count[packet_header.channel_id as usize] == packet_header.packet_id {
 														peer_data.receive_packet_count[packet_header.channel_id as usize] += 1;
-														self.events.push_back(EventType::Data(packet, client_address.clone()));
+														self.events.push_back(ServerEvent::Data(packet, client_address.clone()));
 													} else { //else queue it to wait for the packets in between this and the packet in order to arrive.
 														peer_data.stored_sequenced_packets[packet_header.channel_id as usize].insert(packet_header.packet_id, packet);
 													}
@@ -122,7 +122,7 @@ impl Server {
 													self.stored_packets_to_remove.clear();
 													//after this we should check if we can queue some of the stored packets(if there are any :P)
 													while let Some((id, stored_packet)) = peer_data.stored_sequenced_packets[packet_header.channel_id as usize].get_key_value(&peer_data.receive_packet_count[packet_header.channel_id as usize]) {
-														self.events.push_back(EventType::Data(stored_packet.clone(), client_address.clone()));
+														self.events.push_back(ServerEvent::Data(stored_packet.clone(), client_address.clone()));
 														peer_data.receive_packet_count[packet_header.channel_id as usize] += 1;
 														self.stored_packets_to_remove.push_back(*id);
 													}
@@ -136,13 +136,13 @@ impl Server {
 										}
 
 										ChannelType::Nonreliable => {
-											self.events.push_back(EventType::Data(packet, client_address));
+											self.events.push_back(ServerEvent::Data(packet, client_address));
 										}
 
 										ChannelType::NonreliableDropable => {
 											if let Some(peer_data) = self.connections.get_mut(&client_address) {
 												if peer_data.receive_packet_count[packet_header.channel_id as usize] < packet_header.packet_id || packet_header.packet_id == 0 {
-													self.events.push_back(EventType::Data(packet, client_address));
+													self.events.push_back(ServerEvent::Data(packet, client_address));
 													peer_data.receive_packet_count[packet_header.channel_id as usize] = packet_header.packet_id;
 												}
 											}
@@ -157,6 +157,7 @@ impl Server {
 									if let Some(connection) = self.connections.get_mut(&client_address) {
 										connection.update_timeout();
 										self.send_ping(&client_address);
+										self.events.push_back(ServerEvent::Ping(client_address));
 									}
 								}
 							}
@@ -167,7 +168,7 @@ impl Server {
 							}
 		
 							PacketType::Undefined => {
-								println!("Packet Header was wrongly acquired.");
+								println!("Packet Header type was undefined.");
 							}
 						}
 					}
@@ -176,8 +177,8 @@ impl Server {
 				Err(error) => {
 					if error.kind() != std::io::ErrorKind::WouldBlock {
 						println!("Error receiving packet: {}", error);
+						break;
 					}
-					break;
 				}
 			}
 		}
@@ -193,7 +194,7 @@ impl Server {
 				self.stored_packets.retain(|spi, _| spi.peer != peer.to_string()); //remove stored packets
 
 				//send event
-				let event = EventType::Timeout(peer.to_string());
+				let event = ServerEvent::Timeout(peer.to_string());
 				self.events.push_back(event);
 				return false;
 			} else {
@@ -221,7 +222,7 @@ impl Server {
 		}
 	}
 
-	pub fn get_event(&mut self) -> Option<EventType> {
+	pub fn get_event(&mut self) -> Option<ServerEvent> {
 		match self.events.pop_front() {Some(event) => return Some(event),None => return None}
 	}
 
