@@ -86,11 +86,11 @@ impl StoredPacketIdentifier {
         }
     }
 
-    pub fn clone(&self) -> StoredPacketIdentifier {
+    /*pub fn clone(&self) -> StoredPacketIdentifier {
         return StoredPacketIdentifier {
             peer: self.peer.to_string(),
             channel_id: self.channel_id,
             packet_id: self.packet_id
         }
-    }
+    }*/
 }

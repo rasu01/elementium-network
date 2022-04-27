@@ -32,6 +32,7 @@ pub enum ClientEvent {
 	ConnectionDenied,
 	Disconnect,
 	Timeout,
+	Reconnecting,
 	Data(Packet), //Packet
 	Ping,
 }
@@ -60,6 +61,10 @@ pub struct Server {
 pub struct Client {
 	socket: std::net::UdpSocket,
 	receive_buffer: [u8; 60000],
+	receive_packet_count: [u128; 32],
+	send_packet_count: [u128; 32],
+	stored_sequenced_packets: [std::collections::HashMap<u128, Packet>; 32],
+	packets_already_received: [std::collections::HashMap<u128, std::time::Instant>; 32],
 	address: String,
 	sequence: u32,
 	reliable: u32,
@@ -68,6 +73,8 @@ pub struct Client {
 	stored_packets: std::collections::HashMap<StoredPacketIdentifier, StoredPacket>,
 	connection_timeout: std::time::Instant,
 	internal_packet_count: u128,
+	ping_timer: std::time::Instant,
+	stored_packets_to_remove: VecDeque<u128>,
 }
 
 #[derive(Eq, PartialEq, Hash)]

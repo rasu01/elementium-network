@@ -1,7 +1,23 @@
 use std::collections::VecDeque;
-
 use super::*;
 
+#[macro_use]
+mod server_macros {
+	macro_rules! internal_send {
+		($self:expr, $packet:expr, $peer:expr) => {
+			match $self.socket.send_to($packet.slice(), $peer.to_string()) {
+				Ok(_) => {},
+				Err(e ) => {
+					println!("Unable to send. Error: {}", e);
+				}
+			}
+		};
+	}
+
+	pub(super) use internal_send;
+}
+
+#[allow(dead_code)]
 impl Server {
 
 	pub fn new(port: u16, max_connections: usize) -> std::result::Result<Server, std::io::Error> {
@@ -148,7 +164,6 @@ impl Server {
 											}
 										}
 									}
-
 								}
 							}
 		
@@ -178,6 +193,8 @@ impl Server {
 					if error.kind() != std::io::ErrorKind::WouldBlock {
 						println!("Error receiving packet: {}", error);
 						break;
+					} else {
+						break;
 					}
 				}
 			}
@@ -194,8 +211,7 @@ impl Server {
 				self.stored_packets.retain(|spi, _| spi.peer != peer.to_string()); //remove stored packets
 
 				//send event
-				let event = ServerEvent::Timeout(peer.to_string());
-				self.events.push_back(event);
+				self.events.push_back(ServerEvent::Timeout(peer.to_string()));
 				return false;
 			} else {
 
@@ -208,18 +224,12 @@ impl Server {
 		});
 
 		//check the stored packets timers
-		let mut timers_to_update: Vec<StoredPacketIdentifier> = Vec::new();
-		for (spi, sp) in &self.stored_packets {
+		self.stored_packets.iter_mut().for_each(|(spi, sp)| {
 			if sp.has_timed_out() {
-				self.internal_send(&spi.peer.to_string(), &sp.packet);
-				timers_to_update.push(spi.clone());
-			}
-		}
-		for spi in timers_to_update { //this could probably be done better..
-			if let Some(sp) = self.stored_packets.get_mut(&spi) {
+				server_macros::internal_send!(self, sp.packet, spi.peer);
 				sp.update_timeout();
 			}
-		}
+		});
 	}
 
 	pub fn get_event(&mut self) -> Option<ServerEvent> {
@@ -255,12 +265,7 @@ impl Server {
 	}
 
 	fn internal_send(&self, peer: &String, packet: &Packet) {
-		match self.socket.send_to(packet.slice(), peer) {
-			Ok(_) => {},
-			Err(e ) => {
-				println!("Unable to send. Error: {}", e);
-			}
-		}
+		server_macros::internal_send!(self, packet, peer);
 	}
 
 	fn store_packet(&mut self, peer: &String, channel: u8, packet_id: u128, packet: &Packet) {
