@@ -290,10 +290,10 @@ impl Client {
 					}
 				}
 			}
-
-			self.internal_update();
-			std::thread::sleep(std::time::Duration::from_secs_f64(sleep_time));
 		}
+		
+		self.internal_update();
+		std::thread::sleep(std::time::Duration::from_secs_f64(sleep_time));
 	}
 
 	pub fn get_event(&mut self) -> Option<ClientEvent> {

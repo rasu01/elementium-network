@@ -1,5 +1,5 @@
-mod network;
-use network::*;
+pub mod network;
+pub use network::*;
 
 /* 
 fn main() {
