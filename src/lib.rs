@@ -1,7 +1,7 @@
 mod network;
-
 use network::*;
 
+/* 
 fn main() {
 
     let port = 25501;
@@ -78,4 +78,4 @@ fn main() {
             }
         }
     }
-}
+}*/
