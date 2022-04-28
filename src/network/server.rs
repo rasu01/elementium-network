@@ -54,7 +54,7 @@ impl Server {
 		}
 	}
 
-	pub fn update(&mut self, sleep_time: f64) {
+	pub fn update(&mut self) {
 
 		loop {
 			match self.socket.recv_from(&mut self.receive_buffer) {
@@ -201,7 +201,6 @@ impl Server {
 		}
 
 		self.internal_update();
-		std::thread::sleep(std::time::Duration::from_secs_f64(sleep_time));
 	}
 
 	pub fn internal_update(&mut self) {
